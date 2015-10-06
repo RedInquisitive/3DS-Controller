@@ -8,41 +8,45 @@
 
 bool usingPro = false;
 bool askedForPro = false;
+bool hasIr = false;
+
+int frame = 0; // if the framerate is 60, every time we hit 60, 1 second has passed. 
 
 u32 *irmemloc;
 
-u8 *buf;
-
-u32 *transfercount;
+Result MASTER;
 
 void initIr() {
-	irmemloc = malloc(sizeof(u32));
-	buf = malloc(sizeof(u8));
-	transfercount = malloc(sizeof(u32));
-	IRU_Initialize(irmemloc, sizeof(irmemloc));
+	irmemloc = (u32*) malloc(0x1000);
+	MASTER = IRU_Initialize(irmemloc, 0x1000);
+	if(MASTER != 0) {
+        free(irmemloc);
+        irmemloc = NULL;
+	}
+	hasIr = MASTER == 0;
 }
 
 void closeIr() {
-	IRU_Shutdown();
-	free(transfercount);
-	free(buf);
-	free(irmemloc);
+    if(hasIr) {
+        IRU_Shutdown();
+        if(irmemloc != NULL) {
+            free(irmemloc);
+            irmemloc = NULL;
+        }
+        hasIr = false;
+    }
 }
 
 void printIr() {
-
-	u32 ir_memloc = *irmemloc;
-	u8 bu_f = *buf;
-	u32 ir_ansfercount = *transfercount;
-	
-	bu_f = 0xAA;
-	
-	IRU_SetIRLEDState(0x1);
-	//IRU_RecvData(buf, (u32)sizeof(irmemloc), (u8)0, transfercount, (u32)0x00000010);
-	
-	drawString(10, 30, "irmemloc: %x", ir_memloc);
-	drawString(10, 40, "buf: %x", bu_f);
-	drawString(10, 50, "trans: %x", ir_ansfercount);
+	if(frame % 60 == 0) {
+		IRU_SetIRLEDState(1); //send 1 time per 60 fps. Should (should) turn on CPP.
+		drawString(10, 20, "SENT: %x", MASTER);
+		frame++;
+	} else {
+		IRU_SetIRLEDState(0);
+		drawString(10, 20, "GOT: %x", MASTER);
+		frame++;
+	}
 	
 }
 
@@ -67,9 +71,29 @@ void askForCirclePadPro() {
 			usingPro = false;
 		}
 		if((kHeld & KEY_L) && (kHeld & KEY_R) && (kHeld & KEY_Y)) {
-			askedForPro = true;
-			usingPro = true;
 			initIr();
+			if(hasIr) {
+				askedForPro = true;
+				usingPro = true;
+			} else {
+				bool err = true;
+				while(err) {
+					hidScanInput();
+					clearScreen();
+					drawString(10, 10, "Something happened...");
+					drawString(10, 20, "Error: %x", MASTER);
+					drawString(10, 60, "(A) - Turn OFF the CPP (Recommended)");
+					kHeld = hidKeysHeld();
+					if((kHeld & KEY_A)) {
+						askedForPro = true;
+						usingPro = false;
+						err = false;
+					}
+					gfxFlushBuffers();
+					gspWaitForVBlank();
+					gfxSwapBuffers();
+				}
+			}
 		}
 		
 		

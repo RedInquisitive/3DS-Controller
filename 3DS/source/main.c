@@ -10,7 +10,7 @@
 #include "drawing.h"
 #include "input.h"
 #include "keyboard.h"
-//#include "cpadpro.h"
+#include "cpadpro.h"
 
 static jmp_buf exitJmp;
 
@@ -79,11 +79,11 @@ int main(void) {
 	openSocket(settings.port);
 	sendConnectionRequest();
 	
-	/*clearScreen();
+	clearScreen();
 	gfxFlushBuffers();
 	gfxSwapBuffers();
 	
-	askForCirclePadPro();*/
+	askForCirclePadPro();
 	
 	clearScreen();
 	gfxFlushBuffers();
@@ -152,7 +152,9 @@ int main(void) {
 		
 		sendKeys(kHeld, circlePad, touch, cStick, volume);
 		drawString(10, 10, "Volume: %x", volume);
-		//printIr();
+		if(usingPro) {
+			printIr();
+		}
 		//receiveBuffer(sizeof(struct packet));
 		
 		if((kHeld & KEY_START) && (kHeld & KEY_SELECT)) longjmp(exitJmp, 1);
@@ -166,9 +168,9 @@ int main(void) {
 	
 	enableBacklight();
 	
-	/*if(usingPro) {
+	if(usingPro) {
 		closeIr();
-	}*/
+	}
 	
 	SOC_Shutdown();
 	
